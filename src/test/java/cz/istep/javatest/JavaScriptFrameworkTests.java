@@ -56,15 +56,15 @@ public class JavaScriptFrameworkTests {
 			}
 		}
 
-		JavaScriptFramework react = new JavaScriptFramework("React");
-		JavaScriptFramework vue = new JavaScriptFramework("Vue.js");
+		JavaScriptFramework react = new JavaScriptFramework("React", 0L);
+		JavaScriptFramework vue = new JavaScriptFramework("Vue.js", 0L);
 		
 		repository.save(react);
 		repository.save(vue);
 	}
 
 	@Test
-	public void frameworksTest() throws Exception {
+	public void getFrameworksTest() throws Exception {
 		mockMvc.perform(get("/frameworks")).andExpect(status().isOk()).andExpect(content().contentType(MediaType.APPLICATION_JSON))
 				.andExpect(jsonPath("$", hasSize(2)))
 				.andExpect(jsonPath("$[0].name", is("React")))
@@ -74,30 +74,56 @@ public class JavaScriptFrameworkTests {
 	@Test
 	public void createFrameworkTest() throws Exception {
 		var name1 = "React";
+		var hype1 = -5L;
 		var name2 = "Match ěščřžýáíé 30 chars exact"; // try match with unicode (different bytes count vs char count)
-
-		JavaScriptFramework framework1 = new JavaScriptFramework(name1);
-		JavaScriptFramework framework2 = new JavaScriptFramework(name2);
+		var hype2 = 5L;
+		JavaScriptFramework framework1 = new JavaScriptFramework(name1, hype1);
+		JavaScriptFramework framework2 = new JavaScriptFramework(name2, hype2);
 		mockMvc.perform(post("/frameworks").contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsBytes(framework1)))
 			.andExpect(status().is2xxSuccessful())
 			.andExpect(jsonPath("$.id", notNullValue()))
-			.andExpect(jsonPath("$.name", is(name1)));
+			.andExpect(jsonPath("$.name", is(name1)))
+			.andExpect(jsonPath("$.hype", is(hype1), Long.class));
 		mockMvc.perform(post("/frameworks").contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsBytes(framework2)))
 			.andExpect(status().is2xxSuccessful())
 			.andExpect(jsonPath("$.id", notNullValue()))
-			.andExpect(jsonPath("$.name", is(name2)));
+			.andExpect(jsonPath("$.name", is(name2)))
+			.andExpect(jsonPath("$.hype", is(hype2), Long.class));
 	}
 
 	@Test
-	public void createFrameworkInvalidTest() throws Exception {
+	public void createFramework_Empty_InvalidTest() throws Exception {
 		JavaScriptFramework framework = new JavaScriptFramework();
+		mockMvc.perform(post("/frameworks").contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsBytes(framework)))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.errors", hasSize(3)))
+			.andExpect(jsonPath("$.errors[0].field", is("hype")))
+			.andExpect(jsonPath("$.errors[0].code", is("NotNull")))
+			.andExpect(jsonPath("$.errors[1].field", is("name")))
+			.andExpect(jsonPath("$.errors[1].code", is("NotEmpty")))
+			.andExpect(jsonPath("$.errors[2].field", is("versionList")))
+			.andExpect(jsonPath("$.errors[2].code", is("NotEmpty")));
+	}
+
+	@Test
+	public void createFramework_MaxSize_InvalidTest() throws Exception {
+		JavaScriptFramework framework = new JavaScriptFramework(
+			"verylongnameofthejavascriptframeworkjavaisthebest",
+			0L
+		);
 		mockMvc.perform(post("/frameworks").contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsBytes(framework)))
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.errors", hasSize(1)))
 			.andExpect(jsonPath("$.errors[0].field", is("name")))
-			.andExpect(jsonPath("$.errors[0].code", is("NotEmpty")));
+			.andExpect(jsonPath("$.errors[0].code", is("Size")));
+	}
 
-		framework.setName("verylongnameofthejavascriptframeworkjavaisthebest");
+	@Test
+	public void createFramework_MinSize_InvalidTest() throws Exception {
+		JavaScriptFramework framework = new JavaScriptFramework(
+			"ve",
+			0L
+		);
 		mockMvc.perform(post("/frameworks").contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsBytes(framework)))
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.errors", hasSize(1)))
@@ -108,7 +134,7 @@ public class JavaScriptFrameworkTests {
 	@Test
 	public void updateFrameworkTest() throws Exception {
 		var id1 = 1;
-		var id2 = 2;
+		var id2 = 3; // because of single sequence in mem h2, javascriptframeworkversion record got id=2
 		var name1 = "React";
 		var name2 = "Match ěščřžýáíé 30 chars exact"; // try match with unicode (different bytes count vs char count)
 
@@ -126,11 +152,14 @@ public class JavaScriptFrameworkTests {
 
 	@Test
 	public void deleteFrameworkTest() throws Exception {
+		var id1 = 1;
+		var id2 = 3; // because of single sequence in mem h2, javascriptframeworkversion record got id=2
+
 		Assert.assertEquals(2, ((Collection<?>)repository.findAll()).size());
 
-		mockMvc.perform(delete("/frameworks/1"))
+		mockMvc.perform(delete("/frameworks/" + id1))
 			.andExpect(status().is2xxSuccessful());
-		mockMvc.perform(delete("/frameworks/2"))
+		mockMvc.perform(delete("/frameworks/" + id2))
 			.andExpect(status().is2xxSuccessful());
 
 		Assert.assertEquals(0, ((Collection<?>)repository.findAll()).size());

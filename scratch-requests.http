@@ -1,0 +1,36 @@
+###
+GET http://localhost:8080/frameworks
+
+
+###
+DELETE http://localhost:8080/frameworks/1
+
+
+###
+DELETE http://localhost:8080/frameworks/1/version/2
+
+
+###
+POST http://localhost:8080/frameworks
+Content-Type: application/json
+
+{
+  "name": "Ahoj",
+  "hype": 99,
+  "versionList": [{
+    "version": "1.0-SNAPSHOT"
+  }]
+}
+
+
+###
+PUT http://localhost:8080/frameworks/1
+Content-Type: application/json
+
+{
+    "name": "To be or Not to be",
+    "hype": -5,
+    "versionList": [{
+      "version": "Pepsi Cola"
+    }]
+}
